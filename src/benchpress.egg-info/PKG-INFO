@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: benchpress
+Version: 0.1.0
+Summary: LLM inference benchmark for Apple Silicon — speed + quality with statistical rigor
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: click>=8.1
+Requires-Dist: numpy>=1.26
+Requires-Dist: scipy>=1.12
+Requires-Dist: psutil>=5.9
+Requires-Dist: rich>=13.0
+Provides-Extra: mlx
+Requires-Dist: mlx-lm>=0.18; extra == "mlx"
+Provides-Extra: transformers
+Requires-Dist: transformers>=4.40; extra == "transformers"
+Requires-Dist: torch>=2.2; extra == "transformers"
+Requires-Dist: accelerate>=0.28; extra == "transformers"
+Provides-Extra: ollama
+Requires-Dist: ollama>=0.2; extra == "ollama"
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"

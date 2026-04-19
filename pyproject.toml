@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "benchpress"
+version = "0.1.0"
+description = "LLM inference benchmark for Apple Silicon — speed + quality with statistical rigor"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "psutil>=5.9",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+mlx = ["mlx-lm>=0.18"]
+transformers = ["transformers>=4.40", "torch>=2.2", "accelerate>=0.28"]
+ollama = ["ollama>=0.2"]
+dev = ["pytest>=8", "pytest-cov"]
+
+[project.scripts]
+benchpress = "benchpress.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
