@@ -40,6 +40,17 @@ class Backend(ABC):
     def name(self) -> str:
         ...
 
+    def perplexity_of(self, text: str) -> float:
+        """Return per-token perplexity for *text*.
+
+        Requires direct logprob access. Backends that cannot provide this
+        should leave this default, which raises ``NotImplementedError``.
+        """
+        raise NotImplementedError(
+            f"Backend '{self.name}' does not support perplexity scoring. "
+            "Use --no-perplexity or switch to mlx/transformers."
+        )
+
     def __enter__(self) -> "Backend":
         return self
 

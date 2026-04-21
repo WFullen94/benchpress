@@ -84,6 +84,23 @@ class MLXBackend(Backend):
             token_timestamps=token_timestamps,
         )
 
+    def perplexity_of(self, text: str) -> float:
+        if self._model is None:
+            raise BackendError("Call load() before perplexity_of()")
+
+        import mlx.core as mx
+        import mlx.nn as nn
+
+        tokens = self._tokenizer.encode(text)
+        if len(tokens) < 2:
+            raise ValueError("Text too short for perplexity calculation (need ≥2 tokens).")
+
+        tokens_mx = mx.array(tokens)
+        logits = self._model(tokens_mx[None, :-1])   # (1, seq-1, vocab)
+        loss = nn.losses.cross_entropy(logits[0], tokens_mx[1:], reduction="mean")
+        mx.eval(loss)
+        return float(mx.exp(loss).item())
+
     def unload(self) -> None:
         self._model = None
         self._tokenizer = None
