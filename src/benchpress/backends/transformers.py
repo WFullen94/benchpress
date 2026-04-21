@@ -106,6 +106,17 @@ class TransformersBackend(Backend):
             token_timestamps=token_timestamps,
         )
 
+    def perplexity_of(self, text: str) -> float:
+        if self._model is None:
+            raise BackendError("Call load() before perplexity_of()")
+
+        import torch
+
+        inputs = self._tokenizer(text, return_tensors="pt").to(self._device)
+        with torch.no_grad():
+            outputs = self._model(**inputs, labels=inputs["input_ids"])
+        return float(torch.exp(outputs.loss).item())
+
     def unload(self) -> None:
         self._model = None
         self._tokenizer = None

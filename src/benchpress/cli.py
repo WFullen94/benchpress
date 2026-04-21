@@ -162,6 +162,145 @@ def compare(model_a, model_b, backend, runs, warmup, max_tokens, backend_b):
 
 
 @main.command()
+@click.argument("model")
+@click.option(
+    "--backend", "-b",
+    default="mlx",
+    type=click.Choice(["mlx", "ollama", "transformers"], case_sensitive=False),
+    show_default=True,
+    help="Inference backend to use.",
+)
+@click.option(
+    "--tasks", "-t",
+    multiple=True,
+    default=["mmlu", "hellaswag", "truthfulqa"],
+    show_default=True,
+    help="Task probes to run. Repeat flag to select a subset.",
+)
+@click.option("--n-per-task", default=50, show_default=True, help="Examples per task.")
+@click.option("--perplexity/--no-perplexity", default=True, show_default=True,
+              help="Compute WikiText-2 perplexity (requires logprob access).")
+@click.option("--n-docs", default=20, show_default=True, help="WikiText-2 docs for perplexity.")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Save JSON results to file.")
+def quality(model, backend, tasks, n_per_task, perplexity, n_docs, output):
+    """Evaluate MODEL quality: perplexity on WikiText-2 + task accuracy probes."""
+    import datetime
+    import json
+
+    from benchpress.backends import get_backend, BackendError
+    from benchpress.hardware import hardware_summary
+    from benchpress.quality import compute_perplexity, run_task_probes
+    from benchpress.quality.scorer import QualityResult
+    from rich.table import Table
+    from rich import box
+
+    try:
+        b = get_backend(backend)
+    except ValueError as e:
+        console.print(f"[red]Error:[/] {e}")
+        import sys; sys.exit(1)
+
+    console.print(f"\n[bold]Loading[/] [yellow]{model}[/] via [cyan]{backend}[/]…")
+    try:
+        b.load(model)
+    except BackendError as e:
+        console.print(f"[red]Load failed:[/] {e}")
+        import sys; sys.exit(1)
+
+    hw = hardware_summary()
+    ppl: float | None = None
+
+    if perplexity:
+        console.print("\n[bold]Perplexity[/] — WikiText-2 test set…")
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(),
+                      TaskProgressColumn(), console=console) as prog:
+            ptask = prog.add_task("Computing perplexity…", total=n_docs)
+
+            def ppl_cb(done: int, total: int) -> None:
+                prog.update(ptask, completed=done)
+
+            try:
+                ppl = compute_perplexity(b, n_docs=n_docs, progress_cb=ppl_cb)
+            except NotImplementedError as e:
+                console.print(f"  [yellow]Skipped:[/] {e}")
+            except ImportError as e:
+                console.print(f"  [yellow]Skipped:[/] {e}")
+
+    console.print("\n[bold]Task accuracy probes[/]…")
+    task_results = []
+    task_list = list(tasks)
+    total_examples = len(task_list) * n_per_task
+
+    with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(),
+                  TaskProgressColumn(), console=console) as prog:
+        ttask = prog.add_task("Running tasks…", total=total_examples)
+        completed = [0]
+
+        def task_cb(done: int, total: int, name: str) -> None:
+            completed[0] += 1
+            prog.update(ttask, completed=completed[0], description=f"[cyan]{name}[/]…")
+
+        try:
+            task_results = run_task_probes(b, tasks=task_list, n_per_task=n_per_task, progress_cb=task_cb)
+        except ImportError as e:
+            console.print(f"  [yellow]Skipped:[/] {e}")
+
+    b.unload()
+
+    result = QualityResult(
+        model=model,
+        backend=backend,
+        hardware=f"{hw['chip']} · {hw['memory_gb']:.0f} GB",
+        timestamp=datetime.datetime.now().isoformat(timespec="seconds"),
+        perplexity=ppl,
+        tasks=task_results,
+    )
+
+    # --- Rich output ---
+    console.print()
+    console.print(f"[bold cyan]benchpress quality[/] · {model}", highlight=False)
+    console.print(
+        f"  backend: [yellow]{backend}[/]  hardware: [green]{result.hardware}[/]",
+        highlight=False,
+    )
+    console.print()
+
+    table = Table(box=box.SIMPLE_HEAD, header_style="bold")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+
+    if ppl is not None:
+        table.add_row("Perplexity (WikiText-2 ↓)", f"{ppl:.2f}")
+    for tr in task_results:
+        table.add_row(
+            f"{tr.name} accuracy (↑)",
+            f"{tr.accuracy:.1%}  ({tr.n_correct}/{tr.n_total})",
+        )
+    if result.quality_score is not None:
+        table.add_row("Quality score (↑)", f"{result.quality_score:.3f}")
+
+    console.print(table)
+
+    if output:
+        data = {
+            "model": result.model,
+            "backend": result.backend,
+            "hardware": result.hardware,
+            "timestamp": result.timestamp,
+            "perplexity": result.perplexity,
+            "tasks": [
+                {"name": t.name, "accuracy": round(t.accuracy, 4),
+                 "n_correct": t.n_correct, "n_total": t.n_total}
+                for t in result.tasks
+            ],
+            "quality_score": result.quality_score,
+        }
+        with open(output, "w") as f:
+            json.dump(data, f, indent=2)
+        console.print(f"[dim]Results saved to {output}[/]")
+
+
+@main.command()
 def backends():
     """List available backends and their installation status."""
     from rich.table import Table
