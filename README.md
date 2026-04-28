@@ -30,6 +30,7 @@ Install at least one inference backend:
 pip install mlx-lm          # recommended for Apple Silicon (M1/M2/M3)
 # or: install Ollama.app and run: pip install ollama
 # or: pip install torch transformers
+# or: CMAKE_ARGS='-DGGML_METAL=on' pip install llama-cpp-python --no-cache-dir
 ```
 
 Phase 2 quality evaluation also needs:
@@ -66,7 +67,7 @@ Options:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--backend` | `mlx` | `mlx`, `ollama`, or `transformers` |
+| `--backend` | `mlx` | `mlx`, `ollama`, `transformers`, `llamacpp` |
 | `--runs` | `5` | Benchmark iterations per prompt |
 | `--warmup` | `1` | Discarded warmup iterations |
 | `--max-tokens` | `256` | Max tokens to generate |
@@ -90,10 +91,16 @@ Options:
 | `--n-docs` | `20` | WikiText-2 documents for perplexity |
 | `--output` | — | Save results as JSON |
 
-### Compare two models
+### Compare two models (or two backends)
 
 ```bash
+# Same model, same backend
 benchpress compare model-a model-b --backend mlx
+
+# Same model, different backends — apples-to-apples
+benchpress compare bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M \
+    mlx-community/Llama-3.2-3B-Instruct-4bit \
+    --backend llamacpp --backend-b mlx
 ```
 
 Reports side-by-side speed metrics with Holm-Bonferroni adjusted p-values, significance stars, and Cohen's d. Uses paired Wilcoxon when run counts match, Mann-Whitney otherwise.
@@ -131,7 +138,7 @@ benchpress backends
 | 2 | ✅ done | Quality foundation — perplexity + task accuracy |
 | 3 | ✅ done | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection |
 | 4 | ✅ done | Leaderboard — `benchpress submit`, JSON schema, community results |
-| 5 | planned | Multi-backend — llama.cpp, apples-to-apples comparison |
+| 5 | ✅ done | Multi-backend — llama.cpp (Metal), apples-to-apples comparison |
 | 6 | planned | Quantization sweep — Q2–Q8 Pareto frontier |
 | 7 | planned | GitHub Pages — auto-rendered leaderboard from `results/` |
 | 8 | planned | Distribution — PyPI, Homebrew |

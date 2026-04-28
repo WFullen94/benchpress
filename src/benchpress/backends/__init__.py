@@ -5,6 +5,9 @@ from benchpress.backends.base import Backend, BackendError
 __all__ = ["Backend", "BackendError", "get_backend"]
 
 
+BACKENDS = ["mlx", "ollama", "transformers", "llamacpp"]
+
+
 def get_backend(name: str) -> "Backend":
     name = name.lower()
     if name == "mlx":
@@ -16,6 +19,9 @@ def get_backend(name: str) -> "Backend":
     if name in ("transformers", "hf"):
         from benchpress.backends.transformers import TransformersBackend
         return TransformersBackend()
+    if name in ("llamacpp", "llama.cpp", "llama_cpp"):
+        from benchpress.backends.llamacpp import LlamaCppBackend
+        return LlamaCppBackend()
     raise ValueError(
-        f"Unknown backend '{name}'. Choose: mlx, ollama, transformers"
+        f"Unknown backend '{name}'. Choose: {', '.join(BACKENDS)}"
     )
