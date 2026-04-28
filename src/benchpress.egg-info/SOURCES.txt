@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 src/benchpress/__init__.py
 src/benchpress/cli.py
@@ -17,5 +18,10 @@ src/benchpress/backends/base.py
 src/benchpress/backends/mlx.py
 src/benchpress/backends/ollama.py
 src/benchpress/backends/transformers.py
+src/benchpress/quality/__init__.py
+src/benchpress/quality/perplexity.py
+src/benchpress/quality/scorer.py
+src/benchpress/quality/tasks.py
 tests/test_metrics.py
+tests/test_quality.py
 tests/test_stats.py
