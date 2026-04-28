@@ -10,7 +10,7 @@ Most benchmarking tools measure one thing: MLPerf targets datacenters, `llm-benc
 
 - **Speed metrics** — tokens/sec, time-to-first-token, end-to-end latency, all with bootstrap 95% confidence intervals
 - **Quality metrics** — perplexity on WikiText-2, task accuracy on MMLU / HellaSwag / TruthfulQA, composite quality score
-- **Statistical rigour** — Mann-Whitney U significance testing, Cohen's d effect size for model comparisons
+- **Statistical rigour** — paired Wilcoxon / Mann-Whitney U significance testing, Holm-Bonferroni correction for multiple comparisons, Cohen's d effect size, thermal throttling detection (Mann-Kendall trend test)
 - **Multiple backends** — MLX (recommended for M-series), Ollama, HuggingFace Transformers + MPS
 - **Rich terminal output** — tables, progress bars, optional JSON and Markdown export
 
@@ -58,6 +58,7 @@ Options:
 | `--max-tokens` | `256` | Max tokens to generate |
 | `--output` | — | Save results as JSON |
 | `--markdown` | — | Print Markdown table |
+| `--cooldown` | `0` | Seconds to wait between runs (reduces thermal throttling) |
 
 ### Quality evaluation
 
@@ -81,7 +82,7 @@ Options:
 benchpress compare model-a model-b --backend mlx
 ```
 
-Reports side-by-side speed metrics with p-values and Cohen's d.
+Reports side-by-side speed metrics with Holm-Bonferroni adjusted p-values, significance stars, and Cohen's d. Uses paired Wilcoxon when run counts match, Mann-Whitney otherwise.
 
 ### List available backends
 
@@ -97,7 +98,7 @@ benchpress backends
 |-------|--------|-------------|
 | 1 | ✅ done | Speed foundation — tokens/sec, TTFT, bootstrap CI |
 | 2 | ✅ done | Quality foundation — perplexity + task accuracy |
-| 3 | planned | Statistical rigor — pairwise significance, thermal detection |
+| 3 | ✅ done | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection |
 | 4 | planned | Multi-backend — llama.cpp, MLX, transformers, apples-to-apples |
 | 5 | planned | Quantization sweep — Q2–Q8 Pareto frontier |
 | 6 | planned | Model coverage — Llama, Mistral, Gemma, Phi, Qwen |
