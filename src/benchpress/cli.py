@@ -8,8 +8,11 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from benchpress.metrics import InferenceResult
+from benchpress.backends import BACKENDS
 
 console = Console()
+
+_BACKEND_CHOICE = click.Choice(BACKENDS, case_sensitive=False)
 
 
 @click.group()
@@ -23,7 +26,7 @@ def main():
 @click.option(
     "--backend", "-b",
     default="mlx",
-    type=click.Choice(["mlx", "ollama", "transformers"], case_sensitive=False),
+    type=_BACKEND_CHOICE,
     show_default=True,
     help="Inference backend to use.",
 )
@@ -110,7 +113,7 @@ def run(model, backend, runs, warmup, max_tokens, temperature, prompts_file, out
 @click.option(
     "--backend", "-b",
     default="mlx",
-    type=click.Choice(["mlx", "ollama", "transformers"], case_sensitive=False),
+    type=_BACKEND_CHOICE,
     show_default=True,
 )
 @click.option("--runs", "-n", default=5, show_default=True)
@@ -118,7 +121,7 @@ def run(model, backend, runs, warmup, max_tokens, temperature, prompts_file, out
 @click.option("--max-tokens", default=256, show_default=True)
 @click.option(
     "--backend-b", default=None,
-    type=click.Choice(["mlx", "ollama", "transformers"], case_sensitive=False),
+    type=_BACKEND_CHOICE,
     help="Override backend for MODEL_B (default: same as --backend).",
 )
 def compare(model_a, model_b, backend, runs, warmup, max_tokens, backend_b):
@@ -168,7 +171,7 @@ def compare(model_a, model_b, backend, runs, warmup, max_tokens, backend_b):
 @click.option(
     "--backend", "-b",
     default="mlx",
-    type=click.Choice(["mlx", "ollama", "transformers"], case_sensitive=False),
+    type=_BACKEND_CHOICE,
     show_default=True,
     help="Inference backend to use.",
 )
@@ -378,6 +381,7 @@ def backends():
         "mlx": ("mlx_lm", "pip install mlx-lm"),
         "ollama": ("ollama", "pip install ollama  (also install Ollama.app)"),
         "transformers": ("transformers", "pip install torch transformers"),
+        "llamacpp": ("llama_cpp", "CMAKE_ARGS='-DGGML_METAL=on' pip install llama-cpp-python --no-cache-dir"),
     }
     table = Table(box=box.SIMPLE_HEAD, header_style="bold")
     table.add_column("Backend")
