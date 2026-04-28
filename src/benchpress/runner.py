@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import time
 from typing import Callable
 
 from benchpress.backends.base import Backend
@@ -27,6 +28,7 @@ def run_benchmark(
     warmup_runs: int = 1,
     max_tokens: int = 256,
     temperature: float = 0.0,
+    cooldown: int = 0,
     progress_cb: Callable[[int, int, InferenceResult], None] | None = None,
 ) -> BenchmarkStats:
     """
@@ -61,6 +63,9 @@ def run_benchmark(
 
             if progress_cb is not None:
                 progress_cb(completed, total, result)
+
+            if cooldown > 0 and completed < total:
+                time.sleep(cooldown)
 
     hw = hardware_summary()
     return BenchmarkStats(

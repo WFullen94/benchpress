@@ -39,7 +39,8 @@ def main():
 )
 @click.option("--output", "-o", type=click.Path(), default=None, help="Save JSON results to file.")
 @click.option("--markdown", is_flag=True, help="Print Markdown table instead of rich output.")
-def run(model, backend, runs, warmup, max_tokens, temperature, prompts_file, output, markdown):
+@click.option("--cooldown", default=0, show_default=True, help="Seconds to wait between runs (reduces thermal throttling).")
+def run(model, backend, runs, warmup, max_tokens, temperature, prompts_file, output, markdown, cooldown):
     """Benchmark MODEL and print speed metrics with confidence intervals."""
     from benchpress.backends import get_backend, BackendError
     from benchpress.runner import run_benchmark, DEFAULT_PROMPTS
@@ -86,6 +87,7 @@ def run(model, backend, runs, warmup, max_tokens, temperature, prompts_file, out
             warmup_runs=warmup,
             max_tokens=max_tokens,
             temperature=temperature,
+            cooldown=cooldown,
             progress_cb=on_progress,
         )
 
