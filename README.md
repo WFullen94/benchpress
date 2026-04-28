@@ -40,6 +40,20 @@ pip install datasets        # HuggingFace datasets (WikiText-2, MMLU, HellaSwag,
 
 ---
 
+## Leaderboard
+
+Community results on Apple Silicon hardware. [Add yours](#contributing-results).
+
+<!-- LEADERBOARD_START -->
+| Model | Backend | Hardware | tok/s | TTFT (s) | Perplexity ↓ | Quality ↑ |
+|-------|---------|----------|------:|--------:|-------------:|----------:|
+| _Your model here_ | — | — | — | — | — | — |
+<!-- LEADERBOARD_END -->
+
+_tok/s = mean tokens/sec with 95% bootstrap CI · 5 runs · 256 max tokens · temperature 0.0_
+
+---
+
 ## Usage
 
 ### Speed benchmark
@@ -84,6 +98,23 @@ benchpress compare model-a model-b --backend mlx
 
 Reports side-by-side speed metrics with Holm-Bonferroni adjusted p-values, significance stars, and Cohen's d. Uses paired Wilcoxon when run counts match, Mann-Whitney otherwise.
 
+### Submit to leaderboard
+
+```bash
+benchpress run my-model --output speed.json
+benchpress quality my-model --output quality.json   # optional
+benchpress submit speed.json --quality quality.json
+```
+
+Saves a validated entry to `results/`. Commit it and open a PR to share.
+
+### View local leaderboard
+
+```bash
+benchpress leaderboard
+benchpress leaderboard --markdown   # for README/CI output
+```
+
 ### List available backends
 
 ```bash
@@ -99,11 +130,11 @@ benchpress backends
 | 1 | ✅ done | Speed foundation — tokens/sec, TTFT, bootstrap CI |
 | 2 | ✅ done | Quality foundation — perplexity + task accuracy |
 | 3 | ✅ done | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection |
-| 4 | planned | Multi-backend — llama.cpp, MLX, transformers, apples-to-apples |
-| 5 | planned | Quantization sweep — Q2–Q8 Pareto frontier |
-| 6 | planned | Model coverage — Llama, Mistral, Gemma, Phi, Qwen |
-| 7 | planned | Reporting — Markdown/JSON reports, GitHub Actions |
-| 8 | planned | Distribution — PyPI, GitHub Pages leaderboard |
+| 4 | ✅ done | Leaderboard — `benchpress submit`, JSON schema, community results |
+| 5 | planned | Multi-backend — llama.cpp, apples-to-apples comparison |
+| 6 | planned | Quantization sweep — Q2–Q8 Pareto frontier |
+| 7 | planned | GitHub Pages — auto-rendered leaderboard from `results/` |
+| 8 | planned | Distribution — PyPI, Homebrew |
 
 ---
 

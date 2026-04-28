@@ -12,10 +12,11 @@
 | 1 | Speed foundation — tokens/sec, TTFT, bootstrap CI |
 | 2 | Quality foundation — perplexity + task accuracy (MMLU, HellaSwag, TruthfulQA) |
 | 3 | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection (Mann-Kendall) |
+| 4 | Leaderboard — `benchpress submit`, JSON schema v1, `results/` directory, `benchpress leaderboard` command |
 
 ---
 
-## Phase 4 — Multi-backend apples-to-apples
+## Phase 5 — Multi-backend apples-to-apples
 
 Compare MLX, Ollama, llama.cpp, HuggingFace Transformers on identical models at identical quantization levels. Currently backends have different default settings that make direct comparison misleading.
 

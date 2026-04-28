@@ -303,6 +303,72 @@ def quality(model, backend, tasks, n_per_task, perplexity, n_docs, output):
 
 
 @main.command()
+@click.argument("speed_file", type=click.Path(exists=True))
+@click.option("--quality", "quality_file", type=click.Path(exists=True), default=None,
+              help="Quality JSON from `benchpress quality --output`.")
+@click.option("--results-dir", default="results", show_default=True,
+              help="Directory to save the leaderboard entry.")
+@click.option("--dry-run", is_flag=True, help="Print the entry without saving.")
+def submit(speed_file, quality_file, results_dir, dry_run):
+    """Format and save a leaderboard entry from benchmark output files.
+
+    SPEED_FILE is the JSON output from `benchpress run --output`.
+    Optionally pair with --quality from `benchpress quality --output`.
+
+    Example:
+        benchpress run my-model --output speed.json
+        benchpress quality my-model --output quality.json
+        benchpress submit speed.json --quality quality.json
+    """
+    import json
+    from pathlib import Path
+    from benchpress.leaderboard import make_entry, validate_entry, save_entry, render_rich
+
+    with open(speed_file) as f:
+        speed_json = json.load(f)
+
+    quality_json = None
+    if quality_file:
+        with open(quality_file) as f:
+            quality_json = json.load(f)
+
+    entry = make_entry(speed_json, quality_json)
+    errors = validate_entry(entry)
+    if errors:
+        for err in errors:
+            console.print(f"[red]Validation error:[/] {err}")
+        sys.exit(1)
+
+    if dry_run:
+        console.print_json(json.dumps(entry, indent=2))
+        return
+
+    path = save_entry(entry, Path(results_dir))
+    console.print(f"\n[green]Saved[/] leaderboard entry → [bold]{path}[/]")
+    console.print(
+        f"\n  [dim]To share: commit [bold]{path}[/] and open a PR to "
+        f"github.com/wfullen/benchpress[/]\n"
+    )
+    render_rich([entry])
+
+
+@main.command("leaderboard")
+@click.option("--results-dir", default="results", show_default=True,
+              help="Directory containing leaderboard JSON files.")
+@click.option("--markdown", is_flag=True, help="Print as Markdown table.")
+def leaderboard_cmd(results_dir, markdown):
+    """Display the local leaderboard from saved results."""
+    from pathlib import Path
+    from benchpress.leaderboard import load_all, render_rich, render_markdown
+
+    entries = load_all(Path(results_dir))
+    if markdown:
+        click.echo(render_markdown(entries))
+    else:
+        render_rich(entries)
+
+
+@main.command()
 def backends():
     """List available backends and their installation status."""
     from rich.table import Table
