@@ -54,12 +54,16 @@ class MLXBackend(Backend):
         # mlx_lm.stream_generate yields (token_str, logprobs) or token_str
         # depending on version — handle both
         output_text = ""
+        import inspect
+        gen_kwargs = {"max_tokens": max_tokens}
+        sig = inspect.signature(mlx_lm.stream_generate)
+        gen_kwargs["temperature" if "temperature" in sig.parameters else "temp"] = temperature
+
         for chunk in mlx_lm.stream_generate(
             self._model,
             self._tokenizer,
             prompt=formatted,
-            max_tokens=max_tokens,
-            temp=temperature,
+            **gen_kwargs,
         ):
             now = time.perf_counter()
             token_timestamps.append(now)
