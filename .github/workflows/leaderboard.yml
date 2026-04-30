@@ -1,0 +1,47 @@
+name: Publish Leaderboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "results/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install benchpress (stats + leaderboard only)
+        run: pip install -e ".[dev]" --no-deps && pip install numpy scipy rich
+
+      - name: Generate leaderboard page
+        run: python .github/scripts/build_leaderboard.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
