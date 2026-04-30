@@ -306,6 +306,81 @@ def quality(model, backend, tasks, n_per_task, perplexity, n_docs, output):
 
 
 @main.command()
+@click.argument("repo")
+@click.option(
+    "--quants", "-q",
+    default=",".join(["Q4_K_M", "Q5_K_M", "Q6_K", "Q8_0"]),
+    show_default=True,
+    help="Comma-separated quant tags to sweep.",
+)
+@click.option("--runs", "-n", default=3, show_default=True,
+              help="Speed benchmark runs per quant.")
+@click.option("--warmup", default=1, show_default=True)
+@click.option("--max-tokens", default=256, show_default=True)
+@click.option("--ppl-docs", default=10, show_default=True,
+              help="WikiText-2 docs for perplexity (fewer = faster).")
+@click.option("--output", "-o", type=click.Path(), default=None,
+              help="Save sweep results as JSON.")
+@click.option("--plot", type=click.Path(), default=None,
+              help="Save Pareto frontier plot as PNG.")
+@click.option("--no-perplexity", is_flag=True,
+              help="Skip perplexity — speed-only sweep.")
+def sweep(repo, quants, runs, warmup, max_tokens, ppl_docs, output, plot, no_perplexity):
+    """Sweep quant levels for a HuggingFace GGUF repo and plot the Pareto frontier.
+
+    REPO is a HuggingFace repo ID, e.g.:
+
+        benchpress sweep bartowski/Llama-3.2-3B-Instruct-GGUF
+
+    Each quant level is downloaded, benchmarked for speed, and scored for
+    perplexity on WikiText-2. Results are plotted as a Pareto frontier
+    (tokens/sec vs perplexity) so you can pick the best quality/speed tradeoff.
+    """
+    import json
+    from benchpress.sweep import run_sweep, plot_pareto, render_sweep_table, STANDARD_QUANTS
+
+    quant_list = [q.strip() for q in quants.split(",") if q.strip()]
+
+    console.print(
+        f"\n[bold cyan]benchpress sweep[/] · [yellow]{repo}[/]\n"
+        f"  quants: {', '.join(quant_list)}\n"
+        f"  runs per quant: {runs}  ·  "
+        f"perplexity: {'off' if no_perplexity else f'{ppl_docs} docs'}\n"
+    )
+
+    completed = [0]
+
+    def on_progress(quant: str, stage: str) -> None:
+        console.print(f"  [{completed[0]+1}/{len(quant_list)}] [yellow]{quant}[/] — {stage}…")
+        if stage == "loading":
+            completed[0] += 1
+
+    result = run_sweep(
+        repo=repo,
+        quants=quant_list,
+        n_runs=runs,
+        warmup_runs=warmup,
+        max_tokens=max_tokens,
+        n_ppl_docs=0 if no_perplexity else ppl_docs,
+        progress_cb=on_progress,
+    )
+
+    render_sweep_table(result)
+
+    if plot:
+        try:
+            plot_pareto(result, plot)
+            console.print(f"  [green]Plot saved[/] → [bold]{plot}[/]\n")
+        except ImportError:
+            console.print("  [yellow]matplotlib not installed — skipping plot.[/]")
+
+    if output:
+        with open(output, "w") as f:
+            json.dump(result.to_dict(), f, indent=2)
+        console.print(f"  [dim]Results saved → {output}[/]\n")
+
+
+@main.command()
 @click.argument("speed_file", type=click.Path(exists=True))
 @click.option("--quality", "quality_file", type=click.Path(exists=True), default=None,
               help="Quality JSON from `benchpress quality --output`.")
