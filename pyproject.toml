@@ -21,7 +21,7 @@ mlx = ["mlx-lm>=0.18"]
 transformers = ["transformers>=4.40", "torch>=2.2", "accelerate>=0.28"]
 ollama = ["ollama>=0.2"]
 llamacpp = ["llama-cpp-python>=0.2.90"]
-dev = ["pytest>=8", "pytest-cov"]
+dev = ["pytest>=8", "pytest-cov", "matplotlib>=3.8"]
 
 [project.scripts]
 benchpress = "benchpress.cli:main"

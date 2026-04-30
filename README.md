@@ -105,6 +105,33 @@ benchpress compare bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M \
 
 Reports side-by-side speed metrics with Holm-Bonferroni adjusted p-values, significance stars, and Cohen's d. Uses paired Wilcoxon when run counts match, Mann-Whitney otherwise.
 
+### Quantization sweep
+
+```bash
+benchpress sweep bartowski/Llama-3.2-3B-Instruct-GGUF
+```
+
+Downloads and benchmarks Q4\_K\_M, Q5\_K\_M, Q6\_K, Q8\_0 by default. Plots a Pareto frontier of tokens/sec vs perplexity so you can pick the best quality/speed tradeoff for your hardware.
+
+Options:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--quants` | `Q4_K_M,Q5_K_M,Q6_K,Q8_0` | Comma-separated quant tags |
+| `--runs` | `3` | Speed runs per quant |
+| `--ppl-docs` | `10` | WikiText-2 docs for perplexity |
+| `--output` | — | Save results as JSON |
+| `--plot` | — | Save Pareto frontier as PNG |
+| `--no-perplexity` | — | Speed-only sweep |
+
+```bash
+# Custom quants + save everything
+benchpress sweep bartowski/Llama-3.2-3B-Instruct-GGUF \
+    --quants Q2_K,Q4_K_M,Q8_0 \
+    --output sweep.json \
+    --plot pareto.png
+```
+
 ### Submit to leaderboard
 
 ```bash
@@ -139,7 +166,7 @@ benchpress backends
 | 3 | ✅ done | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection |
 | 4 | ✅ done | Leaderboard — `benchpress submit`, JSON schema, community results |
 | 5 | ✅ done | Multi-backend — llama.cpp (Metal), apples-to-apples comparison |
-| 6 | planned | Quantization sweep — Q2–Q8 Pareto frontier |
+| 6 | ✅ done | Quantization sweep — `benchpress sweep`, Pareto frontier plot |
 | 7 | planned | GitHub Pages — auto-rendered leaderboard from `results/` |
 | 8 | planned | Distribution — PyPI, Homebrew |
 

@@ -16,7 +16,7 @@
 
 ---
 
-## Phase 5 — Multi-backend apples-to-apples
+## Phase 5 — Multi-backend apples-to-apples ✅
 
 Compare MLX, Ollama, llama.cpp, HuggingFace Transformers on identical models at identical quantization levels. Currently backends have different default settings that make direct comparison misleading.
 
@@ -27,7 +27,7 @@ Compare MLX, Ollama, llama.cpp, HuggingFace Transformers on identical models at 
 
 ---
 
-## Phase 5 — Quantization Pareto frontier
+## Phase 5 — Quantization Pareto frontier ✅
 
 Sweep Q2–Q8 GGUF quantizations of the same base model, plot speed vs quality tradeoff curve. Answers: "what's the best quality I can get at N tokens/sec?"
 
