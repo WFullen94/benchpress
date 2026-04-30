@@ -43,7 +43,7 @@ pip install datasets        # HuggingFace datasets (WikiText-2, MMLU, HellaSwag,
 
 ## Leaderboard
 
-Community results on Apple Silicon hardware. [Add yours](#contributing-results).
+Community results on Apple Silicon hardware — live at **[wfullen94.github.io/benchpress](https://wfullen94.github.io/benchpress)**. [Add yours](#contributing-results).
 
 <!-- LEADERBOARD_START -->
 | Model | Backend | Hardware | tok/s | TTFT (s) | Perplexity ↓ | Quality ↑ |
