@@ -51,13 +51,22 @@ class MLXBackend(Backend):
         first_token_time = 0.0
         t_start = time.perf_counter()
 
-        # mlx_lm.stream_generate yields (token_str, logprobs) or token_str
-        # depending on version — handle both
         output_text = ""
+        gen_kwargs: dict = {"max_tokens": max_tokens}
+
+        # mlx-lm >=0.19 replaced temp/temperature with a sampler callable.
+        # Detect which API is available and build kwargs accordingly.
+        from mlx_lm.generate import generate_step
         import inspect
-        gen_kwargs = {"max_tokens": max_tokens}
-        sig = inspect.signature(mlx_lm.stream_generate)
-        gen_kwargs["temperature" if "temperature" in sig.parameters else "temp"] = temperature
+        gs_sig = inspect.signature(generate_step)
+        if "sampler" in gs_sig.parameters:
+            # New API: pass temperature via a sampler
+            from mlx_lm.sample_utils import make_sampler
+            gen_kwargs["sampler"] = make_sampler(temp=temperature)
+        elif "temperature" in gs_sig.parameters:
+            gen_kwargs["temperature"] = temperature
+        else:
+            gen_kwargs["temp"] = temperature
 
         for chunk in mlx_lm.stream_generate(
             self._model,
@@ -70,8 +79,10 @@ class MLXBackend(Backend):
             output_tokens += 1
             if output_tokens == 1:
                 first_token_time = now - t_start
-            # chunk may be a string or (text, metadata) tuple
-            if isinstance(chunk, tuple):
+            # New API yields GenerationResponse; old API yields str or (str, meta)
+            if hasattr(chunk, "text"):
+                output_text += chunk.text
+            elif isinstance(chunk, tuple):
                 output_text += chunk[0]
             else:
                 output_text += chunk
