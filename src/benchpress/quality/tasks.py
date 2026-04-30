@@ -45,7 +45,7 @@ def _choices_block(choices: list[str]) -> str:
 
 
 def _ask(backend: Backend, prompt: str) -> str | None:
-    result = backend.generate(prompt, max_tokens=5, temperature=0.0)
+    result = backend.generate(prompt, max_tokens=16, temperature=0.0)
     return _extract_letter(result.output)
 
 
@@ -53,27 +53,65 @@ def _ask(backend: Backend, prompt: str) -> str | None:
 # Individual task runners
 # ---------------------------------------------------------------------------
 
+# Balanced subject sample covering easy and hard topics across MMLU categories
+_MMLU_SUBJECTS = [
+    "high_school_geography",
+    "high_school_psychology",
+    "high_school_computer_science",
+    "high_school_biology",
+    "college_biology",
+    "college_computer_science",
+    "world_religions",
+    "moral_scenarios",
+    "prehistory",
+    "sociology",
+]
+
+_MMLU_FEW_SHOT = """\
+The following are multiple choice questions. Answer with only the letter.
+
+Question: What is the capital of France?
+A) Berlin
+B) Madrid
+C) Paris
+D) Rome
+Answer: C
+
+Question: Which data structure uses LIFO ordering?
+A) Queue
+B) Stack
+C) Tree
+D) Graph
+Answer: B
+
+Question: What is 15% of 200?
+A) 25
+B) 30
+C) 35
+D) 40
+Answer: B
+
+"""
+
+
 def _eval_mmlu(
     backend: Backend,
     n: int,
     progress_cb: Callable[[int, int, str], None] | None,
 ) -> TaskResult:
     from datasets import load_dataset
+    import random
 
-    subjects = [
-        "high_school_mathematics",
-        "high_school_computer_science",
-        "abstract_algebra",
-        "college_biology",
-    ]
     examples: list[dict] = []
-    for subj in subjects:
+    per_subject = max(1, n // len(_MMLU_SUBJECTS))
+
+    for subj in _MMLU_SUBJECTS:
         try:
             ds = load_dataset("cais/mmlu", subj, split="test", trust_remote_code=False)
-            for row in ds:
-                examples.append(row)
-                if len(examples) >= n:
-                    break
+            rows = list(ds)
+            random.seed(42)
+            random.shuffle(rows)
+            examples.extend(rows[:per_subject])
         except Exception:
             continue
         if len(examples) >= n:
@@ -84,9 +122,9 @@ def _eval_mmlu(
 
     for i, ex in enumerate(examples):
         prompt = (
-            "Answer with only the letter of the correct choice.\n\n"
-            f"Question: {ex['question']}\n"
-            f"{_choices_block(ex['choices'])}\n\nAnswer:"
+            _MMLU_FEW_SHOT
+            + f"Question: {ex['question']}\n"
+            f"{_choices_block(ex['choices'])}\nAnswer:"
         )
         predicted = _ask(backend, prompt)
         if predicted == _IDX_TO_LETTER.get(ex["answer"]):
@@ -112,9 +150,9 @@ def _eval_hellaswag(
 
     for i, ex in enumerate(examples):
         prompt = (
-            "Choose the most likely continuation. Answer with only the letter.\n\n"
+            "Choose the most likely continuation. Answer with only the letter A, B, C, or D.\n\n"
             f"Context: {ex['ctx']}\n"
-            f"{_choices_block(ex['endings'])}\n\nAnswer:"
+            f"{_choices_block(ex['endings'])}\nAnswer:"
         )
         predicted = _ask(backend, prompt)
         if predicted == _IDX_TO_LETTER.get(int(ex["label"])):
@@ -148,9 +186,9 @@ def _eval_truthfulqa(
         correct_idx = labels.index(1) if 1 in labels else 0
 
         prompt = (
-            "Answer with only the letter of the correct choice.\n\n"
+            "Answer with only the letter A, B, C, or D.\n\n"
             f"Question: {ex['question']}\n"
-            f"{_choices_block(choices)}\n\nAnswer:"
+            f"{_choices_block(choices)}\nAnswer:"
         )
         predicted = _ask(backend, prompt)
         if predicted == _IDX_TO_LETTER.get(correct_idx):
