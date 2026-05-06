@@ -166,6 +166,103 @@ def compare(model_a, model_b, backend, runs, warmup, max_tokens, backend_b):
     print_comparison(results[0], results[1])
 
 
+@main.command("compare-backends")
+@click.argument("model")
+@click.option(
+    "--backends", "-b",
+    default="mlx,ollama",
+    show_default=True,
+    help="Comma-separated backends to compare, e.g. mlx,ollama,llamacpp",
+)
+@click.option("--runs", "-n", default=5, show_default=True, help="Benchmark runs per backend.")
+@click.option("--warmup", default=1, show_default=True)
+@click.option("--max-tokens", default=256, show_default=True)
+@click.option("--cooldown", default=0, show_default=True, help="Seconds between runs.")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Save JSON results.")
+def compare_backends(model, backends, runs, warmup, max_tokens, cooldown, output):
+    """Benchmark MODEL on multiple backends side-by-side.
+
+    Runs the same model on each backend with normalized settings
+    (temperature=0.0, same prompts) so the comparison is apples-to-apples.
+
+    Examples:
+
+    \b
+      benchpress compare-backends mlx-community/Llama-3.2-3B-Instruct-4bit --backends mlx,ollama
+      benchpress compare-backends bartowski/Llama-3.2-3B-Instruct-GGUF --backends ollama,llamacpp
+    """
+    import json as _json
+    from benchpress.backends import get_backend, BackendError
+    from benchpress.runner import run_benchmark, DEFAULT_PROMPTS
+    from benchpress.report import print_result, print_backend_comparison
+
+    backend_list = [b.strip() for b in backends.split(",") if b.strip()]
+    unknown = [b for b in backend_list if b not in BACKENDS]
+    if unknown:
+        console.print(f"[red]Unknown backends:[/] {unknown}. Available: {list(BACKENDS)}")
+        sys.exit(1)
+
+    if len(backend_list) < 2:
+        console.print("[red]Need at least 2 backends to compare.[/]")
+        sys.exit(1)
+
+    all_stats = []
+    for bname in backend_list:
+        console.print(f"\n[bold]Loading[/] [yellow]{model}[/] via [cyan]{bname}[/]…")
+        try:
+            b = get_backend(bname)
+            b.load(model)
+        except BackendError as e:
+            console.print(f"[red]Load failed ({bname}):[/] {e}")
+            console.print(f"  [dim]Skipping {bname}.[/]")
+            continue
+
+        total = (warmup + runs) * len(DEFAULT_PROMPTS)
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn(),
+                      TaskProgressColumn(), console=console) as progress:
+            task = progress.add_task(f"Benchmarking via {bname}…", total=total)
+            stats = run_benchmark(
+                backend=b,
+                model=model,
+                n_runs=runs,
+                warmup_runs=warmup,
+                max_tokens=max_tokens,
+                temperature=0.0,  # normalized: greedy decoding
+                cooldown=cooldown,
+                progress_cb=lambda done, total, r: progress.update(task, completed=done),
+            )
+        b.unload()
+        all_stats.append(stats)
+
+    if len(all_stats) < 2:
+        console.print("[red]Fewer than 2 backends succeeded — nothing to compare.[/]")
+        sys.exit(1)
+
+    print_backend_comparison(all_stats)
+
+    if output:
+        payload = {
+            "model": model,
+            "comparison": "backends",
+            "backends": [s.backend for s in all_stats],
+            "results": [
+                {
+                    "backend": s.backend,
+                    "hardware": s.hardware,
+                    "tokens_per_second": {"mean": round(s.mean_tps, 2),
+                                          "ci_lower": round(s.tps_ci[0], 2),
+                                          "ci_upper": round(s.tps_ci[1], 2)},
+                    "ttft_seconds": {"mean": round(s.mean_ttft, 4)},
+                    "latency_seconds": {"mean": round(s.mean_latency, 3)},
+                }
+                for s in all_stats
+            ],
+        }
+        with open(output, "w") as f:
+            _json.dump(payload, f, indent=2)
+        console.print(f"[dim]Results saved to {output}[/]")
+
+
 @main.command()
 @click.argument("model")
 @click.option(
