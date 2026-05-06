@@ -13,21 +13,13 @@
 | 2 | Quality foundation — perplexity + task accuracy (MMLU, HellaSwag, TruthfulQA) |
 | 3 | Statistical rigor — Wilcoxon/Holm-Bonferroni, thermal throttling detection (Mann-Kendall) |
 | 4 | Leaderboard — `benchpress submit`, JSON schema v1, `results/` directory, `benchpress leaderboard` command |
+| 5 | Multi-backend apples-to-apples — `benchpress compare-backends`, normalized settings, pairwise significance, per-backend caveats |
+| 6 | Quantization Pareto frontier — `benchpress sweep`, speed vs perplexity plot, GGUF auto-download |
+| 7 | GitHub Actions CI + GitHub Pages leaderboard |
 
 ---
 
-## Phase 5 — Multi-backend apples-to-apples ✅
-
-Compare MLX, Ollama, llama.cpp, HuggingFace Transformers on identical models at identical quantization levels. Currently backends have different default settings that make direct comparison misleading.
-
-- [ ] Normalize context length, sampling params, batch size across backends
-- [ ] Add `llama.cpp` backend (Metal-accelerated)
-- [ ] Document per-backend caveats in output
-- [ ] `benchpress compare --backends mlx,ollama,llamacpp model-name`
-
----
-
-## Phase 5 — Quantization Pareto frontier ✅
+## Phase 5 — Quantization Pareto frontier ✅ (renumbered → Phase 6)
 
 Sweep Q2–Q8 GGUF quantizations of the same base model, plot speed vs quality tradeoff curve. Answers: "what's the best quality I can get at N tokens/sec?"
 

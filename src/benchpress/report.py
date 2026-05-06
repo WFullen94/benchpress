@@ -129,6 +129,99 @@ def print_comparison(a: BenchmarkStats, b: BenchmarkStats) -> None:
     console.print()
 
 
+_BACKEND_CAVEATS = {
+    "mlx":          "Apple Silicon only · MLX format models · logprob access (Tier 1)",
+    "ollama":       "Any platform · auto-download · no logprob access (Tier 3)",
+    "llamacpp":     "GGUF format · Metal-accelerated on Apple Silicon",
+    "transformers": "Any platform · HuggingFace IDs · logprob access (Tier 1) · slowest",
+}
+
+
+def print_backend_comparison(results: list[BenchmarkStats]) -> None:
+    """Multi-column backend comparison table with pairwise significance tests."""
+    from itertools import combinations
+    from rich.console import Console
+    from rich.table import Table
+    from rich import box
+
+    console = Console()
+    console.print()
+    backends = [s.backend for s in results]
+    console.print(
+        f"[bold cyan]benchpress compare-backends[/]  "
+        f"[yellow]{results[0].model}[/]  ·  "
+        f"backends: [cyan]{', '.join(backends)}[/]",
+        highlight=False,
+    )
+    console.print(
+        "  [dim]Normalized: temperature=0.0, same prompts across all backends.[/]\n"
+    )
+
+    # --- Main metrics table ---
+    table = Table(box=box.SIMPLE_HEAD, header_style="bold")
+    table.add_column("Metric", style="bold")
+    for s in results:
+        table.add_column(s.backend, justify="right")
+
+    tps_row = ["Tokens / sec"] + [f"{s.mean_tps:.1f}  [{s.tps_ci[0]:.1f}, {s.tps_ci[1]:.1f}]" for s in results]
+    ttft_row = ["TTFT (s)"] + [f"{s.mean_ttft:.3f}  [{s.ttft_ci[0]:.3f}, {s.ttft_ci[1]:.3f}]" for s in results]
+    lat_row = ["Latency (s)"] + [f"{s.mean_latency:.2f}" for s in results]
+    table.add_row(*tps_row)
+    table.add_row(*ttft_row)
+    table.add_row(*lat_row)
+    console.print(table)
+
+    # --- Pairwise significance table ---
+    pairs = list(combinations(range(len(results)), 2))
+    if pairs:
+        all_raw_p = []
+        for i, j in pairs:
+            raw_p = mannwhitney_p(results[i].tps_samples, results[j].tps_samples)
+            all_raw_p.append(raw_p)
+        adj_p = holm_bonferroni(all_raw_p)
+
+        sig_table = Table(box=box.SIMPLE_HEAD, header_style="bold", title="Pairwise significance (tokens/sec)")
+        sig_table.add_column("Pair")
+        sig_table.add_column("Faster", justify="right")
+        sig_table.add_column("Δ tps", justify="right")
+        sig_table.add_column("p (adj.)", justify="right")
+        sig_table.add_column("sig", justify="right")
+        sig_table.add_column("Cohen d", justify="right")
+
+        for (i, j), p in zip(pairs, adj_p):
+            a, b = results[i], results[j]
+            faster = a.backend if a.mean_tps > b.mean_tps else b.backend
+            delta = abs(a.mean_tps - b.mean_tps)
+            d = effect_size_cohen_d(a.tps_samples, b.tps_samples)
+            sig_table.add_row(
+                f"{a.backend} vs {b.backend}",
+                faster,
+                f"+{delta:.1f}",
+                f"{p:.3f}",
+                sig_stars(p),
+                f"{d:.2f}",
+            )
+        console.print(sig_table)
+        console.print("  [dim]Mann-Whitney U, two-sided, Holm-Bonferroni adjusted.[/]")
+
+    # --- Caveats ---
+    console.print("\n  [bold]Backend notes:[/]")
+    for s in results:
+        caveat = _BACKEND_CAVEATS.get(s.backend, "")
+        if caveat:
+            console.print(f"  [cyan]{s.backend:<14}[/] {caveat}")
+
+    # --- Throttling warnings ---
+    for s in results:
+        trend = thermal_trend(s.tps_samples)
+        if trend["throttling"]:
+            console.print(
+                f"\n  [yellow]⚠  {s.backend}: thermal throttling detected[/] "
+                f"(τ={trend['tau']:.2f}, p={trend['p_value']:.3f})"
+            )
+    console.print()
+
+
 def to_json(stats: BenchmarkStats) -> str:
     return json.dumps(
         {
